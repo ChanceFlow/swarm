@@ -20,10 +20,16 @@ class Agent(BaseModel):
     parallel_tool_calls: bool = True
 
 
+class TokenUsage(BaseModel):
+    total_tokens: int = 0
+    agent_usage: dict = {}
+
+
 class Response(BaseModel):
     messages: List = []
     agent: Optional[Agent] = None
     context_variables: dict = {}
+    token_usage: TokenUsage = TokenUsage()
 
 
 class Result(BaseModel):

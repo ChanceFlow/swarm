@@ -1,7 +1,7 @@
 # Standard library imports
 import copy
 import json
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import List, Callable, Union
 
 # Package/library imports
@@ -18,6 +18,7 @@ from .types import (
     Function,
     Response,
     Result,
+    TokenUsage,
 )
 
 __CTX_VARS_NAME__ = "context_variables"
@@ -253,6 +254,8 @@ class Swarm:
         context_variables = copy.deepcopy(context_variables)
         history = copy.deepcopy(messages)
         init_len = len(messages)
+        total_tokens = 0
+        agent_token_usage = Counter()
 
         while len(history) - init_len < max_turns and active_agent:
 
@@ -272,11 +275,15 @@ class Swarm:
                 json.loads(message.model_dump_json())
             )  # to avoid OpenAI types (?)
 
+            # calculate token usage
+            total_tokens += completion.usage.total_tokens
+            agent_token_usage[active_agent.name] += completion.usage.total_tokens
+
             if not message.tool_calls or not execute_tools:
                 debug_print(debug, "Ending turn.")
                 break
 
-            # handle function calls, updating context_variables, and switching agents
+            # handle function calls
             partial_response = self.handle_tool_calls(
                 message.tool_calls, active_agent.functions, context_variables, debug
             )
@@ -289,4 +296,8 @@ class Swarm:
             messages=history[init_len:],
             agent=active_agent,
             context_variables=context_variables,
+            token_usage=TokenUsage(
+                total_tokens=total_tokens,
+                agent_usage=dict(agent_token_usage)
+            ),
         )
